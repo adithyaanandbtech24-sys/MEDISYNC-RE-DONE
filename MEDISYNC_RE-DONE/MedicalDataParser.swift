@@ -1,6 +1,7 @@
 import Foundation
 import UIKit
 import PDFKit
+import SwiftData
 
 /// Parser for extracting medical data from OCR text
 class MedicalDataParser {
@@ -111,10 +112,12 @@ class MedicalDataParser {
                     
                     let labResult = LabResultModel(
                         testName: name,
+                        parameter: name,
                         value: value,
                         unit: unit,
                         normalRange: normalRange,
                         status: status,
+                        testDate: Date(),
                         category: category
                     )
                     results.append(labResult)
@@ -150,7 +153,9 @@ class MedicalDataParser {
                     let medication = MedicationModel(
                         name: name,
                         dosage: dosage,
-                        frequency: frequency
+                        frequency: frequency,
+                        startDate: Date(),
+                        isActive: true
                     )
                     medications.append(medication)
                 }
@@ -171,7 +176,9 @@ class MedicalDataParser {
                     let medication = MedicationModel(
                         name: med.capitalized,
                         dosage: dosage,
-                        frequency: "As prescribed"
+                        frequency: "As prescribed",
+                        startDate: Date(),
+                        isActive: true
                     )
                     medications.append(medication)
                 }
