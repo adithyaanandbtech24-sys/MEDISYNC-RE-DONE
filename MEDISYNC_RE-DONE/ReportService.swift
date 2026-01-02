@@ -63,7 +63,7 @@ final class ReportService {
         try context.save()
         print("✅ [ReportService] Report saved to SwiftData")
         
-        // 3. Process OCR and ML in background (async, don't wait)
+        // 3. Process OCR and Offline Analysis in background (async, don't wait)
         Task {@MainActor in
             do {
                 print("🔍 [ReportService] ========== STARTING BACKGROUND PROCESSING ==========")
@@ -79,26 +79,32 @@ final class ReportService {
                     throw NSError(domain: "OCRService", code: 1, userInfo: [NSLocalizedDescriptionKey: "No text extracted from image"])
                 }
                 
-                print("🤖 [ReportService] Starting AI analysis with Gemini...")
-                let analysisResult = try await ChatService.shared.analyzeMedicalText(extractedText)
-                print("✅ [ReportService] AI analysis complete")
+                print("🤖 [ReportService] Starting OFFLINE analysis...")
+                // Create offline analyzer with default user profile (you can make this dynamic later)
+                let userProfile = MedicalStandardProvider.UserProfile(
+                    age: 30,
+                    gender: .male,
+                    height: nil,
+                    weight: nil
+                )
+                let analyzer = ReportAnalyzerService(userProfile: userProfile)
+               
+                let analysisResult = analyzer.analyzeReport(ocrText: extractedText, testDate: Date())
+                print("✅ [ReportService] Offline analysis complete")
+                print("📊 [ReportService] Found \(analysisResult.parameterCount) parameters")
+                print("⚠️  [ReportService] \(analysisResult.highlights.count) highlights")
                 
                 // Update the report with extracted data
                 report.extractedText = extractedText
                 report.reportType = analysisResult.reportType
-                report.organ = "General" // You might want to infer this from the analysis or keep it general
-                report.aiInsights = analysisResult.summary
-                print("✅ [ReportService] Report updated with AI data")
+                report.organ = "General"
+                report.aiInsights = analysisResult.generateChatbotMessage()
+                print("✅ [ReportService] Report updated with offline analysis")
                 
-                // Extract and create graph data points
+                // Extract and create graph data points directly from lab results
                 print("📊 [ReportService] Creating graph data...")
-                let graphDataPoints = extractGraphData(from: analysisResult, reportId: reportId, context: context)
+                let graphDataPoints = createGraphDataFromLabResults(analysisResult.labResults, reportId: reportId, date: Date(), context: context)
                 print("✅ [ReportService] Created \(graphDataPoints.count) graph data points")
-                
-                // Extract and create medications
-                print("💊 [ReportService] Extracting medications...")
-                let medications = extractMedications(from: analysisResult, context: context)
-                print("✅ [ReportService] Created \(medications.count) medications")
                 
                 try context.save()
                 print("✅ [ReportService] ========== ALL DATA SAVED SUCCESSFULLY! ==========")
@@ -114,17 +120,12 @@ final class ReportService {
         return report
     }
     
-    /// Extract graph data points and lab results from AI analysis
-    private func extractGraphData(from analysis: ChatService.MedicalAnalysisResult, reportId: String, context: ModelContext) -> [GraphDataModel] {
+    
+    /// Create graph data points from LabResultModel array (offline analysis)
+    private func createGraphDataFromLabResults(_ labResults: [LabResultModel], reportId: String, date: Date, context: ModelContext) -> [GraphDataModel] {
         var graphPoints: [GraphDataModel] = []
-        let reportDate = Date()
         
-        for result in analysis.labResults {
-            // Try to parse value as Double
-            // Handle cases like "< 0.5" or "120-130" by taking the first number
-            let valueString = result.value.replacingOccurrences(of: "[^0-9.]", with: "", options: .regularExpression)
-            guard let value = Double(valueString) else { continue }
-            
+        for result in labResults {
             // Map category to organ name
             let metricOrgan = mapCategoryToOrgan(result.category)
             
@@ -132,26 +133,13 @@ final class ReportService {
             let graphPoint = GraphDataModel(
                 organ: metricOrgan,
                 parameter: result.testName,
-                value: value,
+                value: result.value,
                 unit: result.unit,
-                date: reportDate,
+                date: date,
                 reportId: reportId
             )
             context.insert(graphPoint)
             graphPoints.append(graphPoint)
-            
-            // Create LabResultModel for detailed lab tracking
-            let labResult = LabResultModel(
-                testName: result.testName,
-                parameter: result.testName,
-                value: value,
-                unit: result.unit,
-                normalRange: result.normalRange,
-                status: result.status,
-                testDate: reportDate,
-                category: result.category
-            )
-            context.insert(labResult)
         }
         
         return graphPoints
@@ -252,26 +240,32 @@ final class ReportService {
                     throw NSError(domain: "OCRService", code: 1, userInfo: [NSLocalizedDescriptionKey: "No text extracted from PDF"])
                 }
                 
-                print("🤖 [ReportService] Starting AI analysis with Gemini...")
-                let analysisResult = try await ChatService.shared.analyzeMedicalText(extractedText)
-                print("✅ [ReportService] AI analysis complete")
+                print("🤖 [ReportService] Starting OFFLINE analysis for PDF...")
+                // Create offline analyzer
+                let userProfile = MedicalStandardProvider.UserProfile(
+                    age: 30,
+                    gender: .male,
+                    height: nil,
+                    weight: nil
+                )
+                let analyzer = ReportAnalyzerService(userProfile: userProfile)
+               
+                let analysisResult = analyzer.analyzeReport(ocrText: extractedText, testDate: Date())
+                print("✅ [ReportService] PDF Offline analysis complete")
+                print("📊 [ReportService] Found \(analysisResult.parameterCount) parameters")
+                print("⚠️  [ReportService] \(analysisResult.highlights.count) highlights")
                 
                 // Update the report with extracted data
                 report.extractedText = extractedText
                 report.reportType = analysisResult.reportType
                 report.organ = "General"
-                report.aiInsights = analysisResult.summary
-                print("✅ [ReportService] Report updated with AI data")
+                report.aiInsights = analysisResult.generateChatbotMessage()
+                print("✅ [ReportService] PDF Report updated with offline analysis")
                 
-                // Extract and create graph data points
-                print("📊 [ReportService] Creating graph data...")
-                let graphDataPoints = extractGraphData(from: analysisResult, reportId: reportId, context: context)
+                // Extract and create graph data points directly from lab results
+                print("📊 [ReportService] Creating graph data from PDF...")
+                let graphDataPoints = createGraphDataFromLabResults(analysisResult.labResults, reportId: reportId, date: Date(), context: context)
                 print("✅ [ReportService] Created \(graphDataPoints.count) graph data points")
-                
-                // Extract and create medications
-                print("💊 [ReportService] Extracting medications...")
-                let medications = extractMedications(from: analysisResult, context: context)
-                print("✅ [ReportService] Created \(medications.count) medications")
                 
                 try context.save()
                 print("✅ [ReportService] ========== ALL PDF DATA SAVED SUCCESSFULLY! ==========")
