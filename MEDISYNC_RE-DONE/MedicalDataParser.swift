@@ -11,42 +11,93 @@ class MedicalDataParser {
     static func parseLabResults(from text: String) -> [LabResultModel] {
         var results: [LabResultModel] = []
         
-        // Common lab test patterns
+        // Comprehensive lab test patterns - expanded coverage
         let patterns: [(name: String, pattern: String, unit: String, category: String, normalRange: String)] = [
-            // Blood Tests
-            ("Hemoglobin", #"hemoglobin[:\s]+(\d+\.?\d*)\s*(g/dL)?"#, "g/dL", "Blood", "12-16 g/dL"),
-            ("WBC", #"wbc[:\s]+(\d+\.?\d*)\s*(×10³/µL)?"#, "×10³/µL", "Blood", "4-11 ×10³/µL"),
-            ("RBC", #"rbc[:\s]+(\d+\.?\d*)\s*(million/µL)?"#, "million/µL", "Blood", "4.5-5.5 million/µL"),
-            ("Platelets", #"platelet[s]?[:\s]+(\d+\.?\d*)\s*(×10³/µL)?"#, "×10³/µL", "Blood", "150-400 ×10³/µL"),
+            // Blood Count (CBC)
+            ("Hemoglobin", #"(?:hemoglobin|hb|hgb)[:\s]+(\d+\.?\d*)\s*(?:g/dL|g/dl|gm/dl)?"#, "g/dL", "Blood Count", "12-16 g/dL"),
+            ("WBC", #"(?:wbc|white\s*blood\s*cell)[:\s]+(\d+\.?\d*)\s*(?:×10³/µL|thousand/cumm|/cmm)?"#, "×10³/µL", "Blood Count", "4-11 ×10³/µL"),
+            ("RBC", #"(?:rbc|red\s*blood\s*cell)[:\s]+(\d+\.?\d*)\s*(?:million/µL|mill/cumm)?"#, "million/µL", "Blood Count", "4.5-5.5 million/µL"),
+            ("Platelets", #"(?:platelet[s]?|plt)[:\s]+(\d+\.?\d*)\s*(?:×10³/µL|thousand/cumm|/cmm)?"#, "×10³/µL", "Blood Count", "150-400 ×10³/µL"),
+            ("Hematocrit", #"(?:hematocrit|hct|pcv)[:\s]+(\d+\.?\d*)\s*%?"#, "%", "Blood Count", "37-47%"),
+            ("MCV", #"(?:mcv|mean\s*corpuscular\s*volume)[:\s]+(\d+\.?\d*)\s*(?:fL|fl)?"#, "fL", "Blood Count", "80-100 fL"),
+            ("MCH", #"(?:mch|mean\s*corpuscular\s*hb)[:\s]+(\d+\.?\d*)\s*(?:pg)?"#, "pg", "Blood Count", "27-33 pg"),
+            ("MCHC", #"(?:mchc)[:\s]+(\d+\.?\d*)\s*(?:g/dL)?"#, "g/dL", "Blood Count", "32-36 g/dL"),
             
-            // Cholesterol
-            ("Total Cholesterol", #"(?:total\s+)?cholesterol[:\s]+(\d+\.?\d*)\s*(mg/dL)?"#, "mg/dL", "Lipid", "< 200 mg/dL"),
-            ("LDL", #"ldl[:\s]+(\d+\.?\d*)\s*(mg/dL)?"#, "mg/dL", "Lipid", "< 100 mg/dL"),
-            ("HDL", #"hdl[:\s]+(\d+\.?\d*)\s*(mg/dL)?"#, "mg/dL", "Lipid", "> 40 mg/dL"),
-            ("Triglycerides", #"triglyceride[s]?[:\s]+(\d+\.?\d*)\s*(mg/dL)?"#, "mg/dL", "Lipid", "< 150 mg/dL"),
+            // WBC Differential
+            ("Neutrophils", #"(?:neutrophil[s]?|neut)[:\s]+(\d+\.?\d*)\s*%?"#, "%", "Blood Count", "40-70%"),
+            ("Lymphocytes", #"(?:lymphocyte[s]?|lymph)[:\s]+(\d+\.?\d*)\s*%?"#, "%", "Blood Count", "20-40%"),
+            ("Monocytes", #"(?:monocyte[s]?|mono)[:\s]+(\d+\.?\d*)\s*%?"#, "%", "Blood Count", "2-8%"),
+            ("Eosinophils", #"(?:eosinophil[s]?|eos?)[:\s]+(\d+\.?\d*)\s*%?"#, "%", "Blood Count", "1-4%"),
+            ("Basophils", #"(?:basophil[s]?|baso)[:\s]+(\d+\.?\d*)\s*%?"#, "%", "Blood Count", "0-1%"),
             
-            // Glucose
-            ("Fasting Glucose", #"(?:fasting\s+)?glucose[:\s]+(\d+\.?\d*)\s*(mg/dL)?"#, "mg/dL", "Glucose", "70-100 mg/dL"),
-            ("HbA1c", #"hba1c[:\s]+(\d+\.?\d*)\s*%?"#, "%", "Glucose", "< 5.7%"),
+            // Lipid Panel
+            ("Total Cholesterol", #"(?:total\s+)?cholesterol[:\s]+(\d+\.?\d*)\s*(?:mg/dL|mg/dl)?"#, "mg/dL", "Lipid Panel", "< 200 mg/dL"),
+            ("LDL", #"(?:ldl|low\s*density)[:\s]+(\d+\.?\d*)\s*(?:mg/dL|mg/dl)?"#, "mg/dL", "Lipid Panel", "< 100 mg/dL"),
+            ("HDL", #"(?:hdl|high\s*density)[:\s]+(\d+\.?\d*)\s*(?:mg/dL|mg/dl)?"#, "mg/dL", "Lipid Panel", "> 40 mg/dL"),
+            ("Triglycerides", #"(?:triglyceride[s]?|tg)[:\s]+(\d+\.?\d*)\s*(?:mg/dL|mg/dl)?"#, "mg/dL", "Lipid Panel", "< 150 mg/dL"),
+            ("VLDL", #"(?:vldl)[:\s]+(\d+\.?\d*)\s*(?:mg/dL|mg/dl)?"#, "mg/dL", "Lipid Panel", "< 30 mg/dL"),
             
-            // Liver Function
-            ("ALT", #"alt[:\s]+(\d+\.?\d*)\s*(U/L)?"#, "U/L", "Liver", "7-56 U/L"),
-            ("AST", #"ast[:\s]+(\d+\.?\d*)\s*(U/L)?"#, "U/L", "Liver", "10-40 U/L"),
-            ("Bilirubin", #"bilirubin[:\s]+(\d+\.?\d*)\s*(mg/dL)?"#, "mg/dL", "Liver", "0.1-1.2 mg/dL"),
+            // Glucose & Diabetes
+            ("Fasting Glucose", #"(?:fasting\s+)?(?:glucose|sugar|blood\s+sugar)[:\s]+(\d+\.?\d*)\s*(?:mg/dL|mg/dl)?"#, "mg/dL", "Glucose", "70-100 mg/dL"),
+            ("Random Glucose", #"(?:random|pp|post\s*prandial)\s*(?:glucose|sugar)[:\s]+(\d+\.?\d*)\s*(?:mg/dL|mg/dl)?"#, "mg/dL", "Glucose", "< 140 mg/dL"),
+            ("HbA1c", #"(?:hba1c|a1c|glycated\s*hb)[:\s]+(\d+\.?\d*)\s*%?"#, "%", "Glucose", "< 5.7%"),
             
-            // Kidney Function
-            ("Creatinine", #"creatinine[:\s]+(\d+\.?\d*)\s*(mg/dL)?"#, "mg/dL", "Kidney", "0.6-1.2 mg/dL"),
-            ("eGFR", #"egfr[:\s]+(\d+\.?\d*)\s*(mL/min)?"#, "mL/min/1.73m²", "Kidney", "> 60 mL/min"),
-            ("BUN", #"bun[:\s]+(\d+\.?\d*)\s*(mg/dL)?"#, "mg/dL", "Kidney", "7-20 mg/dL"),
+            // Liver Function Tests
+            ("ALT", #"(?:alt|sgpt|alanine)[:\s]+(\d+\.?\d*)\s*(?:U/L|u/l|IU/L)?"#, "U/L", "Liver", "7-56 U/L"),
+            ("AST", #"(?:ast|sgot|aspartate)[:\s]+(\d+\.?\d*)\s*(?:U/L|u/l|IU/L)?"#, "U/L", "Liver", "10-40 U/L"),
+            ("Total Bilirubin", #"(?:total\s+)?bilirubin[:\s]+(\d+\.?\d*)\s*(?:mg/dL|mg/dl)?"#, "mg/dL", "Liver", "0.1-1.2 mg/dL"),
+            ("Direct Bilirubin", #"(?:direct|conjugated)\s*bilirubin[:\s]+(\d+\.?\d*)\s*(?:mg/dL|mg/dl)?"#, "mg/dL", "Liver", "0-0.3 mg/dL"),
+            ("ALP", #"(?:alp|alkaline\s*phosphatase)[:\s]+(\d+\.?\d*)\s*(?:U/L|u/l|IU/L)?"#, "U/L", "Liver", "44-147 U/L"),
+            ("GGT", #"(?:ggt|gamma\s*gt)[:\s]+(\d+\.?\d*)\s*(?:U/L|u/l)?"#, "U/L", "Liver", "0-51 U/L"),
+            ("Albumin", #"(?:albumin)[:\s]+(\d+\.?\d*)\s*(?:g/dL|g/dl)?"#, "g/dL", "Liver", "3.5-5.5 g/dL"),
+            ("Total Protein", #"(?:total\s+)?protein[:\s]+(\d+\.?\d*)\s*(?:g/dL|g/dl)?"#, "g/dL", "Liver", "6.0-8.3 g/dL"),
             
-            // Vitamins
-            ("Vitamin D", #"vitamin\s*d[:\s]+(\d+\.?\d*)\s*(ng/mL)?"#, "ng/mL", "Vitamin", "30-100 ng/mL"),
-            ("Vitamin B12", #"vitamin\s*b12[:\s]+(\d+\.?\d*)\s*(pg/mL)?"#, "pg/mL", "Vitamin", "200-900 pg/mL"),
+            // Kidney Function Tests
+            ("Creatinine", #"(?:creatinine|creat)[:\s]+(\d+\.?\d*)\s*(?:mg/dL|mg/dl)?"#, "mg/dL", "Kidney", "0.6-1.2 mg/dL"),
+            ("eGFR", #"(?:egfr|gfr)[:\s]+(\d+\.?\d*)\s*(?:mL/min|ml/min)?"#, "mL/min/1.73m²", "Kidney", "> 60 mL/min"),
+            ("BUN", #"(?:bun|blood\s*urea)[:\s]+(\d+\.?\d*)\s*(?:mg/dL|mg/dl)?"#, "mg/dL", "Kidney", "7-20 mg/dL"),
+            ("Uric Acid", #"(?:uric\s*acid)[:\s]+(\d+\.?\d*)\s*(?:mg/dL|mg/dl)?"#, "mg/dL", "Kidney", "3.4-7.0 mg/dL"),
             
-            // Thyroid
-            ("TSH", #"tsh[:\s]+(\d+\.?\d*)\s*(mIU/L)?"#, "mIU/L", "Thyroid", "0.4-4.0 mIU/L"),
-            ("T3", #"t3[:\s]+(\d+\.?\d*)\s*(ng/dL)?"#, "ng/dL", "Thyroid", "80-200 ng/dL"),
-            ("T4", #"t4[:\s]+(\d+\.?\d*)\s*(µg/dL)?"#, "µg/dL", "Thyroid", "5-12 µg/dL")
+            // Electrolytes
+            ("Sodium", #"(?:sodium|na)[:\s]+(\d+\.?\d*)\s*(?:mEq/L|meq/l|mmol/L)?"#, "mEq/L", "Electrolytes", "136-145 mEq/L"),
+            ("Potassium", #"(?:potassium|k)[:\s]+(\d+\.?\d*)\s*(?:mEq/L|meq/l|mmol/L)?"#, "mEq/L", "Electrolytes", "3.5-5.0 mEq/L"),
+            ("Chloride", #"(?:chloride|cl)[:\s]+(\d+\.?\d*)\s*(?:mEq/L|meq/l|mmol/L)?"#, "mEq/L", "Electrolytes", "96-106 mEq/L"),
+            ("Calcium", #"(?:calcium|ca)[:\s]+(\d+\.?\d*)\s*(?:mg/dL|mg/dl)?"#, "mg/dL", "Electrolytes", "8.5-10.5 mg/dL"),
+            ("Magnesium", #"(?:magnesium|mg)[:\s]+(\d+\.?\d*)\s*(?:mg/dL|mg/dl|mEq/L)?"#, "mg/dL", "Electrolytes", "1.7-2.2 mg/dL"),
+            
+            // Vitamins & Minerals
+            ("Vitamin D", #"(?:vitamin\s*d|vit\s*d|25\s*oh\s*d)[:\s]+(\d+\.?\d*)\s*(?:ng/mL|ng/ml)?"#, "ng/mL", "Vitamins", "30-100 ng/mL"),
+            ("Vitamin B12", #"(?:vitamin\s*b12|vit\s*b12|b12)[:\s]+(\d+\.?\d*)\s*(?:pg/mL|pg/ml)?"#, "pg/mL", "Vitamins", "200-900 pg/mL"),
+            ("Folate", #"(?:folate|folic\s*acid)[:\s]+(\d+\.?\d*)\s*(?:ng/mL|ng/ml)?"#, "ng/mL", "Vitamins", "2.7-17.0 ng/mL"),
+            ("Iron", #"(?:iron|serum\s*iron)[:\s]+(\d+\.?\d*)\s*(?:µg/dL|ug/dl)?"#, "µg/dL", "Vitamins", "60-170 µg/dL"),
+            ("Ferritin", #"(?:ferritin)[:\s]+(\d+\.?\d*)\s*(?:ng/mL|ng/ml)?"#, "ng/mL", "Vitamins", "12-300 ng/mL"),
+            
+            // Thyroid Function
+            ("TSH", #"(?:tsh|thyroid\s*stimulating)[:\s]+(\d+\.?\d*)\s*(?:mIU/L|uIU/ml)?"#, "mIU/L", "Thyroid", "0.4-4.0 mIU/L"),
+            ("T3", #"(?:^|\s)t3[:\s]+(\d+\.?\d*)\s*(?:ng/dL|ng/dl)?"#, "ng/dL", "Thyroid", "80-200 ng/dL"),
+            ("T4", #"(?:^|\s)t4[:\s]+(\d+\.?\d*)\s*(?:µg/dL|ug/dl)?"#, "µg/dL", "Thyroid", "5-12 µg/dL"),
+            ("Free T3", #"(?:free\s*t3|ft3)[:\s]+(\d+\.?\d*)\s*(?:pg/mL|pg/ml)?"#, "pg/mL", "Thyroid", "2.0-4.4 pg/mL"),
+            ("Free T4", #"(?:free\s*t4|ft4)[:\s]+(\d+\.?\d*)\s*(?:ng/dL|ng/dl)?"#, "ng/dL", "Thyroid", "0.8-1.8 ng/dL"),
+            
+            // Cardiac Markers
+            ("Troponin", #"(?:troponin|trop)[:\s]+(\d+\.?\d*)\s*(?:ng/mL|ng/ml)?"#, "ng/mL", "Cardiac", "< 0.04 ng/mL"),
+            ("CK-MB", #"(?:ck-mb|ckmb)[:\s]+(\d+\.?\d*)\s*(?:ng/mL|ng/ml|U/L)?"#, "ng/mL", "Cardiac", "< 5.0 ng/mL"),
+            ("BNP", #"(?:bnp|b-type)[:\s]+(\d+\.?\d*)\s*(?:pg/mL|pg/ml)?"#, "pg/mL", "Cardiac", "< 100 pg/mL"),
+            
+            // Inflammatory Markers
+            ("CRP", #"(?:crp|c-reactive)[:\s]+(\d+\.?\d*)\s*(?:mg/L|mg/l)?"#, "mg/L", "Inflammatory", "< 3.0 mg/L"),
+            ("ESR", #"(?:esr|sed\s*rate)[:\s]+(\d+\.?\d*)\s*(?:mm/hr|mm/h)?"#, "mm/hr", "Inflammatory", "< 20 mm/hr"),
+            
+            // Urine Tests
+            ("Urine Protein", #"(?:urine\s*)?protein[:\s]+(\d+\.?\d*)\s*(?:mg/dL|mg/dl)?"#, "mg/dL", "Urinalysis", "< 10 mg/dL"),
+            ("Urine Glucose", #"(?:urine\s*)?glucose[:\s]+(\d+\.?\d*)\s*(?:mg/dL|mg/dl)?"#, "mg/dL", "Urinalysis", "< 15 mg/dL"),
+            
+            // Vitals (often in reports)
+            ("Heart Rate", #"(?:heart\s*rate|pulse|hr)[:\s]+(\d+\.?\d*)\s*(?:bpm|/min)?"#, "BPM", "Vitals", "60-100 BPM"),
+            ("Systolic BP", #"(?:bp|blood\s*pressure)[:\s]+(\d+)\/\d+\s*(?:mmHg)?"#, "mmHg", "Vitals", "90-120 mmHg"),
+            ("Diastolic BP", #"(?:bp|blood\s*pressure)[:\s]+\d+\/(\d+)\s*(?:mmHg)?"#, "mmHg", "Vitals", "60-80 mmHg"),
+            ("SpO2", #"(?:spo2|oxygen\s*sat|o2\s*sat)[:\s]+(\d+\.?\d*)\s*%?"#, "%", "Vitals", "95-100%"),
+            ("Temperature", #"(?:temp|temperature)[:\s]+(\d+\.?\d*)\s*(?:°f|f|fahrenheit)?"#, "°F", "Vitals", "97.0-99.0°F")
         ]
         
         for (name, pattern, unit, category, normalRange) in patterns {
