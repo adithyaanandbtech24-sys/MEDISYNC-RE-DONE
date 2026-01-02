@@ -1,0 +1,238 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ============================================================
+    // HELPER FUNCTIONS
+    // ============================================================
+    
+    // Check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Check if user is accessing their own data
+    function isOwner(uid) {
+      return isAuthenticated() && request.auth.uid == uid;
+    }
+    
+    // Get user's role from roles collection
+    function getUserRole() {
+      return get(/databases/$(database)/documents/roles/$(request.auth.uid)).data.role;
+    }
+    
+    // Check if user is a patient
+    function isPatient() {
+      return isAuthenticated() && getUserRole() == 'PATIENT';
+    }
+    
+    // Check if user is a family member with access to this patient
+    function isFamilyMember(patientUid) {
+      return isAuthenticated() && 
+             exists(/databases/$(database)/documents/users/$(patientUid)/family/$(request.auth.uid));
+    }
+    
+    // Check if user is a provider with access to this patient
+    function isProvider(patientUid) {
+      return isAuthenticated() && 
+             getUserRole() == 'PROVIDER' &&
+             exists(/databases/$(database)/documents/providers/$(request.auth.uid)/patients/$(patientUid));
+    }
+    
+    // Check if user has read access (owner, family, or provider)
+    function canRead(uid) {
+      return isOwner(uid) || isFamilyMember(uid) || isProvider(uid);
+    }
+    
+    // Check if user has write access (owner or authorized provider)
+    function canWrite(uid) {
+      return isOwner(uid) || isProvider(uid);
+    }
+    
+    // Validate timestamp is recent (within 5 minutes)
+    function isRecentTimestamp(ts) {
+      return ts > request.time - duration.value(5, 'm') &&
+             ts <= request.time;
+    }
+    
+    // Validate file size (max 10MB for metadata reference)
+    function isValidFileSize(size) {
+      return size <= 10485760; // 10MB in bytes
+    }
+    
+    // ============================================================
+    // ROLES COLLECTION
+    // ============================================================
+    
+    match /roles/{userId} {
+      // Only the user can read their own role
+      allow read: if isOwner(userId);
+      
+      // Only admins can write roles (implement admin check if needed)
+      allow write: if false; // Disable for now - set via Admin SDK
+    }
+    
+    // ============================================================
+    // USERS COLLECTION - BASE USER DATA
+    // ============================================================
+    
+    match /users/{uid} {
+      // User can read/write their own profile
+      allow read: if canRead(uid);
+      allow write: if isOwner(uid);
+      
+      // Validate user document structure
+      allow create: if isOwner(uid) && 
+                       request.resource.data.keys().hasAll(['email', 'createdAt']) &&
+                       request.resource.data.createdAt is timestamp;
+      
+      // ============================================================
+      // MEDICAL REPORTS SUBCOLLECTION
+      // ============================================================
+      
+      match /medical_reports/{reportId} {
+        // Read: owner, family (read-only), or provider
+        allow read: if canRead(uid);
+        
+        // Write: only owner or authorized provider
+        allow write: if canWrite(uid);
+        
+        // Validate medical report structure
+        allow create: if canWrite(uid) &&
+                         request.resource.data.keys().hasAll(['id', 'title', 'uploadDate', 'reportType']) &&
+                         request.resource.data.uploadDate is timestamp &&
+                         request.resource.data.reportType is string &&
+                         request.resource.data.title.size() > 0 &&
+                         request.resource.data.title.size() <= 200 &&
+                         // Ensure no raw PHI fields
+                         !request.resource.data.keys().hasAny(['ssn', 'rawOCR', 'fullAddress']);
+        
+        allow update: if canWrite(uid) &&
+                         // Prevent changing immutable fields
+                         request.resource.data.id == resource.data.id &&
+                         request.resource.data.uploadDate == resource.data.uploadDate;
+      }
+      
+      // ============================================================
+      // MEDICATIONS SUBCOLLECTION
+      // ============================================================
+      
+      match /medications/{medId} {
+        allow read: if canRead(uid);
+        allow write: if canWrite(uid);
+        
+        // Validate medication structure
+        allow create: if canWrite(uid) &&
+                         request.resource.data.keys().hasAll(['id', 'name', 'dosage', 'frequency', 'startDate', 'isActive']) &&
+                         request.resource.data.startDate is timestamp &&
+                         request.resource.data.isActive is bool &&
+                         request.resource.data.name.size() > 0 &&
+                         request.resource.data.dosage.size() > 0;
+      }
+      
+      // ============================================================
+      // LAB RESULTS SUBCOLLECTION
+      // ============================================================
+      
+      match /lab_results/{labId} {
+        allow read: if canRead(uid);
+        allow write: if canWrite(uid);
+        
+        // Validate lab result structure
+        allow create: if canWrite(uid) &&
+                         request.resource.data.keys().hasAll(['id', 'testName', 'value', 'unit', 'testDate']) &&
+                         request.resource.data.testDate is timestamp &&
+                         request.resource.data.value is number;
+      }
+      
+      // ============================================================
+      // TIMELINE ENTRIES SUBCOLLECTION
+      // ============================================================
+      
+      match /timeline_entries/{entryId} {
+        allow read: if canRead(uid);
+        allow write: if canWrite(uid);
+        
+        // Validate timeline entry structure
+        allow create: if canWrite(uid) &&
+                         request.resource.data.keys().hasAll(['id', 'date', 'type', 'title', 'summary']) &&
+                         request.resource.data.date is timestamp &&
+                         request.resource.data.type in ['Report', 'Lab', 'Medication', 'Appointment'] &&
+                         request.resource.data.title.size() > 0 &&
+                         request.resource.data.summary.size() <= 500;
+      }
+      
+      // ============================================================
+      // CHAT MESSAGES SUBCOLLECTION
+      // ============================================================
+      
+      match /chat_messages/{msgId} {
+        // Only owner can read/write chat messages (private AI conversations)
+        allow read: if isOwner(uid);
+        allow write: if isOwner(uid);
+        
+        // Validate chat message structure
+        allow create: if isOwner(uid) &&
+                         request.resource.data.keys().hasAll(['text', 'isUser', 'timestamp']) &&
+                         request.resource.data.timestamp is timestamp &&
+                         request.resource.data.isUser is bool &&
+                         request.resource.data.text.size() > 0 &&
+                         request.resource.data.text.size() <= 5000 &&
+                         isRecentTimestamp(request.resource.data.timestamp);
+      }
+      
+      // ============================================================
+      // FAMILY MEMBERS SUBCOLLECTION
+      // ============================================================
+      
+      match /family/{familyUserId} {
+        // Owner can manage family access
+        allow read: if isOwner(uid);
+        allow write: if isOwner(uid);
+        
+        // Validate family member structure
+        allow create: if isOwner(uid) &&
+                         request.resource.data.keys().hasAll(['userId', 'name', 'relationship', 'grantedAt']) &&
+                         request.resource.data.grantedAt is timestamp;
+      }
+    }
+    
+    // ============================================================
+    // PROVIDERS COLLECTION
+    // ============================================================
+    
+    match /providers/{providerId} {
+      // Provider can read their own profile
+      allow read: if isOwner(providerId);
+      allow write: if isOwner(providerId);
+      
+      // Provider's patient list
+      match /patients/{patientUid} {
+        // Provider can read their patient list
+        allow read: if isOwner(providerId);
+        
+        // Only admin or patient can grant provider access
+        allow write: if isOwner(patientUid); // Patient grants access
+        
+        // Validate patient access structure
+        allow create: if request.resource.data.keys().hasAll(['patientId', 'grantedAt', 'permissions']) &&
+                         request.resource.data.grantedAt is timestamp &&
+                         request.resource.data.permissions is list;
+      }
+    }
+    
+    // ============================================================
+    // BLOCK DANGEROUS PATTERNS
+    // ============================================================
+    
+    // Deny reading entire users collection
+    match /users {
+      allow list: if false;
+    }
+    
+    // Deny all other paths not explicitly allowed
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

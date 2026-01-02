@@ -1,0 +1,90 @@
+COMPREHENSIVE MEDICAL REPORT
+=============================
+Patient: Test Patient
+Date: November 27, 2024
+Report ID: TEST-2024-001
+
+VITAL SIGNS
+-----------
+Heart Rate: 75 bpm
+Blood Pressure: 118/76 mmHg
+SpO2: 98%
+Respiratory Rate: 16 breaths/min
+Temperature: 98.2°F
+
+COMPLETE BLOOD COUNT (CBC)
+---------------------------
+Hemoglobin: 14.2 g/dL
+Hematocrit: 42%
+RBC Count: 4.8 M/μL
+WBC Count: 7.2 K/μL
+Platelets: 245 K/μL
+
+LIPID PANEL
+-----------
+Total Cholesterol: 185 mg/dL
+HDL Cholesterol: 55 mg/dL
+LDL Cholesterol: 110 mg/dL
+Triglycerides: 100 mg/dL
+
+METABOLIC PANEL
+---------------
+Glucose (Fasting): 92 mg/dL
+HbA1c: 5.4%
+
+KIDNEY FUNCTION TESTS
+----------------------
+Creatinine: 0.9 mg/dL
+BUN: 15 mg/dL
+eGFR: 105 mL/min
+
+LIVER FUNCTION TESTS
+--------------------
+ALT (SGPT): 28 U/L
+AST (SGOT): 24 U/L
+Alkaline Phosphatase: 72 U/L
+Total Bilirubin: 0.8 mg/dL
+Albumin: 4.2 g/dL
+
+THYROID PANEL
+-------------
+TSH: 2.1 μIU/mL
+Free T4: 1.2 ng/dL
+
+VITAMINS & MINERALS
+-------------------
+Vitamin D: 35 ng/mL
+Vitamin B12: 450 pg/mL
+Serum Iron: 85 mcg/dL
+Ferritin: 120 ng/mL
+
+ELECTROLYTES
+------------
+Sodium: 140 mEq/L
+Potassium: 4.2 mEq/L
+Calcium: 9.5 mg/dL
+
+CARDIAC MARKERS
+---------------
+Troponin: <0.01 ng/mL
+BNP: 45 pg/mL
+
+INFLAMMATION MARKERS
+--------------------
+CRP: 0.8 mg/L
+ESR: 10 mm/hr
+
+SUMMARY
+-------
+All test results are within normal limits. Patient shows good overall health markers.
+Continue current lifestyle and medication regimen.
+
+RECOMMENDATIONS
+---------------
+1. Maintain healthy diet and exercise routine
+2. Continue monitoring blood pressure and glucose levels
+3. Follow up in 6 months for routine screening
+
+Doctor's Signature: Dr. Test Physician, MD
+Laboratory: MediSync Test Lab
+Report Generated: November 27, 2024
