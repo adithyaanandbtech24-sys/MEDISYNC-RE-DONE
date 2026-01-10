@@ -3,6 +3,7 @@ import SwiftUI
 import SwiftData
 import PhotosUI
 import Combine
+import UIKit // Added for UIImage
 
 @MainActor
 class UploadDocumentViewModel: ObservableObject {
@@ -22,6 +23,12 @@ class UploadDocumentViewModel: ObservableObject {
     // MARK: - Initialization
     
     func checkUploadPermissions(patientUid: String? = nil) async {
+        // Bypass permission checks for Demo Mode (Fake Auth)
+        if AppManager.shared.isDemoMode {
+            canUpload = true
+            return
+        }
+        
         do {
             let targetUid = patientUid ?? authService.getCurrentUserID() ?? ""
             userRole = try await roleService.getCurrentUserRole()
@@ -46,7 +53,17 @@ class UploadDocumentViewModel: ObservableObject {
     
     // MARK: - Upload
     
+    // MARK: - Upload
+    
     func uploadDocument(context: ModelContext) async {
+        // Guest Limit Check
+        do {
+            try AppManager.shared.checkGuestLimit()
+        } catch {
+            errorMessage = error.localizedDescription
+            return
+        }
+        
         guard canUpload else {
             errorMessage = "You don't have permission to upload documents."
             return
@@ -75,6 +92,9 @@ class UploadDocumentViewModel: ObservableObject {
                 context: context
             )
             
+            // Increment Guest Count
+            AppManager.shared.incrementGuestUploadCount()
+            
             uploadProgress = 1.0
             successMessage = "Document uploaded successfully!"
             
@@ -94,6 +114,14 @@ class UploadDocumentViewModel: ObservableObject {
     }
     
     func uploadPDF(url: URL, context: ModelContext) async {
+        // Guest Limit Check
+        do {
+            try AppManager.shared.checkGuestLimit()
+        } catch {
+            errorMessage = error.localizedDescription
+            return
+        }
+        
         guard canUpload else {
             errorMessage = "You don't have permission to upload documents."
             return
@@ -116,6 +144,9 @@ class UploadDocumentViewModel: ObservableObject {
                 title: documentTitle,
                 context: context
             )
+            
+            // Increment Guest Count
+            AppManager.shared.incrementGuestUploadCount()
             
             uploadProgress = 1.0
             successMessage = "PDF uploaded successfully!"

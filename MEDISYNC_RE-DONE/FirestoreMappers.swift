@@ -25,9 +25,7 @@ enum FirestoreMappers {
             dict["pdfURL"] = pdfURL
         }
         // Exclude extractedText for HIPAA compliance - keep only in local SwiftData
-        if let aiInsights = report.aiInsights {
-            dict["aiInsights"] = aiInsights
-        }
+        dict["aiInsights"] = report.aiInsights
         
         return dict
     }
@@ -49,8 +47,8 @@ enum FirestoreMappers {
             organ: organ,
             imageURL: data["imageURL"] as? String,
             pdfURL: data["pdfURL"] as? String,
-            extractedText: nil, // Not synced from cloud
-            aiInsights: data["aiInsights"] as? String
+            extractedText: "", // Not synced from cloud
+            aiInsights: data["aiInsights"] as? String ?? ""
         )
         
         return report
@@ -216,7 +214,7 @@ enum FirestoreMappers {
     
     // MARK: - GraphDataModel
     
-    static func toFirestore(_ data: GraphDataModel) -> [String: Any] {
+    static func toFirestore(_ data: LabGraphDataModel) -> [String: Any] {
         var dict: [String: Any] = [
             "id": data.id,
             "organ": data.organ,
@@ -233,7 +231,7 @@ enum FirestoreMappers {
         return dict
     }
     
-    static func fromFirestore(_ data: [String: Any]) -> GraphDataModel? {
+    static func fromFirestore(_ data: [String: Any]) -> LabGraphDataModel? {
         guard let id = data["id"] as? String,
               let organ = data["organ"] as? String,
               let parameter = data["parameter"] as? String,
@@ -243,7 +241,7 @@ enum FirestoreMappers {
             return nil
         }
         
-        return GraphDataModel(
+        return LabGraphDataModel(
             id: id,
             organ: organ,
             parameter: parameter,

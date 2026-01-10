@@ -8,9 +8,9 @@ import PDFKit
 #endif
 
 /// Service for extracting text from medical documents using Vision framework
-class OCRService {
+public class OCRService {
     // MARK: - Singleton
-    static let shared = OCRService()
+    public static let shared = OCRService()
     
     private init() {}
     
@@ -110,7 +110,7 @@ class OCRService {
     }
     
     #if canImport(PDFKit)
-    /// Extract text from PDF document
+    /// Extract text from PDF document using Vision (Handles scanned PDFs)
     func extractText(from pdfURL: URL) async throws -> String {
         guard let document = PDFDocument(url: pdfURL) else {
             throw OCRError.invalidPDF
@@ -120,24 +120,48 @@ class OCRService {
             throw OCRError.noTextFound
         }
         
-        var extractedText = ""
+        var fullText = ""
         
-        // Extract text from each page
+        print("📄 [OCRService] Processing PDF with \(document.pageCount) pages...")
+        
         for pageIndex in 0..<document.pageCount {
-            guard let page = document.page(at: pageIndex),
-                  let pageText = page.string else {
-                continue
+            guard let page = document.page(at: pageIndex) else { continue }
+            
+            // 1. Try to get text directly (fastest, for native PDFs)
+            // We combine this with OCR to ensure we don't miss "images inside native PDFs"
+            // But for now, let's rely on Vision for consistency if the plan is "Scanned PDF" support.
+            // Actually, mixed PDFs exist.
+            // Let's ALWAYS render to image for maximum reliability as requested.
+            
+            // Render page to image
+            let pageRect = page.bounds(for: .mediaBox)
+            let renderer = UIGraphicsImageRenderer(size: pageRect.size)
+            let image = renderer.image { ctx in
+                UIColor.white.set()
+                ctx.fill(pageRect)
+                ctx.cgContext.translateBy(x: 0.0, y: pageRect.size.height)
+                ctx.cgContext.scaleBy(x: 1.0, y: -1.0)
+                
+                page.draw(with: .mediaBox, to: ctx.cgContext)
             }
             
-            extractedText += pageText
-            extractedText += "\n\n" // Separate pages
+            // Extract text from the rendered page image
+            do {
+                let pageText = try await extractText(from: image)
+                fullText += pageText + "\n\n"
+                print("✅ [OCRService] Page \(pageIndex + 1) processed (\(pageText.count) chars)")
+            } catch {
+                print("⚠️ [OCRService] Failed to extract text from page \(pageIndex + 1): \(error)")
+            }
         }
         
-        if extractedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        let cleanedText = fullText.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        if cleanedText.isEmpty {
             throw OCRError.noTextFound
         }
         
-        return extractedText
+        return cleanedText
     }
     #endif
 }

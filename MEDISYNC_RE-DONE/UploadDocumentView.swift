@@ -11,7 +11,6 @@ struct UploadDocumentView: View {
     
     @State private var selectedImage: PhotosPickerItem?
     @State private var showPDFPicker = false
-    @State private var documentTitle = ""
     
     var onUploadSuccess: (() -> Void)?
     
@@ -28,7 +27,7 @@ struct UploadDocumentView: View {
                                 .font(.headline)
                                 .foregroundColor(.black)
                             
-                            TextField("e.g., Blood Test Nov 2024", text: $documentTitle)
+                            TextField("e.g., Blood Test Nov 2024", text: $viewModel.documentTitle)
                                 .textFieldStyle(.roundedBorder)
                                 .padding()
                                 .background(Color.gray.opacity(0.05))
@@ -170,37 +169,6 @@ struct UploadDocumentView: View {
                                 .padding(.horizontal)
                         }
                         
-                        // Upload Button
-                        if viewModel.selectedImage != nil && !documentTitle.isEmpty {
-                            Button {
-                                Task {
-                                    await viewModel.uploadDocument(context: modelContext)
-                                    if viewModel.successMessage != nil {
-                                        // Auto-dismiss after 1.5 seconds on success
-                                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                                            dismiss()
-                                            onUploadSuccess?()
-                                        }
-                                    }
-                                }
-                            } label: {
-                                HStack {
-                                    Image(systemName: "arrow.up.circle.fill")
-                                        .font(.system(size: 20))
-                                    Text("Upload Document")
-                                        .font(.headline)
-                                }
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(Color.black)
-                                .cornerRadius(16)
-                            }
-                            .disabled(viewModel.isUploading)
-                            .opacity(viewModel.isUploading ? 0.6 : 1.0)
-                            .padding(.horizontal)
-                            .padding(.top, 8)
-                        }
                         
                         Spacer()
                     }
@@ -214,10 +182,24 @@ struct UploadDocumentView: View {
                         dismiss()
                     }
                 }
+                
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        Task {
+                            await viewModel.uploadDocument(context: modelContext)
+                            if viewModel.successMessage != nil {
+                                onUploadSuccess?()
+                                dismiss()
+                            }
+                        }
+                    }
+                    .font(.headline)
+                    .disabled(viewModel.selectedImage == nil || viewModel.documentTitle.isEmpty || viewModel.isUploading)
+                }
             }
             .sheet(isPresented: $showPDFPicker) {
                 DocumentPicker { url in
-                    documentTitle = url.lastPathComponent.replacingOccurrences(of: ".pdf", with: "")
+                    viewModel.documentTitle = url.lastPathComponent.replacingOccurrences(of: ".pdf", with: "")
                     Task {
                         await viewModel.uploadPDF(url: url, context: modelContext)
                         if viewModel.successMessage != nil {
@@ -234,12 +216,8 @@ struct UploadDocumentView: View {
                     if let data = try? await newItem?.loadTransferable(type: Data.self),
                        let image = UIImage(data: data) {
                         viewModel.selectImage(image)
-                        viewModel.documentTitle = documentTitle
                     }
                 }
-            }
-            .onChange(of: documentTitle) { _, newTitle in
-                viewModel.documentTitle = newTitle
             }
         }
     }

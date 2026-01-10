@@ -1,33 +1,40 @@
 import Foundation
 import SwiftData
+import PhotosUI
+#if canImport(UIKit)
+import UIKit
+#endif
+#if canImport(FirebaseFirestore)
+import FirebaseFirestore
+#endif
 
 // MARK: - Medical Report Model
 @Model
-final class MedicalReportModel {
-    @Attribute(.unique) var id: String
-    var title: String
-    var uploadDate: Date
-    var reportType: String
-    var organ: String // e.g., "Heart", "Kidney", "Liver"
-    var imageURL: String?
-    var pdfURL: String?
-    var extractedText: String?
-    var aiInsights: String?
-    var syncState: String = "pending" // "pending", "synced", "failed"
+public final class MedicalReportModel {
+    @Attribute(.unique) public var id: String
+    public var title: String
+    public var uploadDate: Date
+    public var reportType: String
+    public var organ: String // e.g., "Heart", "Kidney", "Liver"
+    public var imageURL: String?
+    public var pdfURL: String?
+    public var extractedText: String
+    public var aiInsights: String
+    public var syncState: String = "pending" // "pending", "synced", "failed"
     
     // Relationships
-    @Relationship(deleteRule: .cascade) var labResults: [LabResultModel]?
-    @Relationship(deleteRule: .cascade) var medications: [MedicationModel]?
+    @Relationship(deleteRule: .cascade) public var labResults: [LabResultModel]?
+    @Relationship(deleteRule: .cascade) public var medications: [MedicationModel]?
     
-    init(id: String = UUID().uuidString,
+    public init(id: String = UUID().uuidString,
          title: String,
          uploadDate: Date = Date(),
          reportType: String,
          organ: String = "General",
          imageURL: String? = nil,
          pdfURL: String? = nil,
-         extractedText: String? = nil,
-         aiInsights: String? = nil) {
+         extractedText: String = "",
+         aiInsights: String = "") {
         self.id = id
         self.title = title
         self.uploadDate = uploadDate
@@ -41,24 +48,54 @@ final class MedicalReportModel {
     }
 }
 
+// MARK: - User Profile Model
+@Model
+public final class UserProfileModel {
+    public var name: String
+    public var age: Int
+    public var gender: String // "male", "female", "other"
+    public var height: Double? // cm
+    public var weight: Double? // kg
+    public var profilePhotoData: Data? // JPEG or PNG data
+    public var enableAI: Bool // User preference for AI-powered features
+    
+    public init(name: String = "User",
+         age: Int = 30,
+         gender: String = "male",
+         height: Double? = nil,
+         weight: Double? = nil,
+         profilePhotoData: Data? = nil,
+         enableAI: Bool = true) {
+        self.name = name
+        self.age = age
+        self.gender = gender
+        self.height = height
+        self.weight = weight
+        self.profilePhotoData = profilePhotoData
+        self.enableAI = enableAI
+    }
+}
+
 // MARK: - Lab Result Model
 @Model
-final class LabResultModel {
-    @Attribute(.unique) var id: String
-    var testName: String
-    var parameter: String // e.g., "Hemoglobin", "Cholesterol"
-    var value: Double
-    var unit: String
-    var normalRange: String
-    var status: String // "Normal", "High", "Low"
-    var testDate: Date
-    var category: String // "Blood", "Urine", "Liver", etc.
-    var syncState: String = "pending"
+public final class LabResultModel {
+    @Attribute(.unique) public var id: String
+    public var testName: String
+    public var parameter: String // e.g., "Hemoglobin", "Cholesterol"
+    public var value: Double
+    public var stringValue: String? // Support for text-based results (e.g. "A+", "Positive")
+    public var unit: String
+    public var normalRange: String
+    public var status: String // "Normal", "High", "Low"
+    public var testDate: Date
+    public var category: String // "Blood", "Urine", "Liver", etc.
+    public var syncState: String = "pending"
     
-    init(id: String = UUID().uuidString,
+    public init(id: String = UUID().uuidString,
          testName: String,
          parameter: String? = nil,
          value: Double,
+         stringValue: String? = nil,
          unit: String,
          normalRange: String,
          status: String,
@@ -68,6 +105,7 @@ final class LabResultModel {
         self.testName = testName
         self.parameter = parameter ?? testName
         self.value = value
+        self.stringValue = stringValue
         self.unit = unit
         self.normalRange = normalRange
         self.status = status
@@ -79,22 +117,23 @@ final class LabResultModel {
 
 // MARK: - Medication Model
 @Model
-final class MedicationModel {
-    @Attribute(.unique) var id: String
-    var name: String
-    var dosage: String
-    var frequency: String
-    var instructions: String?
-    var startDate: Date
-    var endDate: Date?
-    var prescribedBy: String?
-    var notes: String?
-    var sideEffects: String?
-    var alternatives: String?
-    var isActive: Bool
-    var syncState: String = "pending"
+public final class MedicationModel {
+    @Attribute(.unique) public var id: String
+    public var name: String
+    public var dosage: String
+    public var frequency: String
+    public var instructions: String?
+    public var startDate: Date
+    public var endDate: Date?
+    public var prescribedBy: String?
+    public var notes: String?
+    public var sideEffects: String?
+    public var alternatives: String?
+    public var isActive: Bool
+    public var source: String // "Prescribed", "Detected from document", "Self-reported", "Unknown"
+    public var syncState: String = "pending"
     
-    init(id: String = UUID().uuidString,
+    public init(id: String = UUID().uuidString,
          name: String,
          dosage: String,
          frequency: String,
@@ -105,7 +144,8 @@ final class MedicationModel {
          notes: String? = nil,
          sideEffects: String? = nil,
          alternatives: String? = nil,
-         isActive: Bool = true) {
+         isActive: Bool = true,
+         source: String = "Unknown") {
         self.id = id
         self.name = name
         self.dosage = dosage
@@ -118,23 +158,129 @@ final class MedicationModel {
         self.sideEffects = sideEffects
         self.alternatives = alternatives
         self.isActive = isActive
+        self.source = source
         self.syncState = "pending"
     }
 }
 
-// MARK: - Organ Trend Model (for Timeline)
+// MARK: - Lab Graph Data Model
 @Model
-final class OrganTrendModel {
-    @Attribute(.unique) var id: String
-    var organ: String // "Heart", "Kidney", "Lungs", etc.
-    var parameter: String // "Heart Rate", "eGFR", "SpO2"
-    var value: Double
-    var unit: String
-    var date: Date
-    var trend: String // "improving", "stable", "declining"
-    var comparisonValue: Double? // Previous value for comparison
+public final class LabGraphDataModel {
+    @Attribute(.unique) public var id: String
+    public var organ: String
+    public var parameter: String
+    public var value: Double
+    public var unit: String
+    public var date: Date
+    public var reportId: String?
+    public var refMin: Double? // Store specific reference range min
+    public var refMax: Double? // Store specific reference range max
+    public var syncState: String = "pending"
     
-    init(id: String = UUID().uuidString,
+    public init(id: String = UUID().uuidString,
+         organ: String,
+         parameter: String,
+         value: Double,
+         unit: String,
+         date: Date = Date(),
+         refMin: Double? = nil,
+         refMax: Double? = nil,
+         reportId: String? = nil) {
+        self.id = id
+        self.organ = organ
+        self.parameter = parameter
+        self.value = value
+        self.unit = unit
+        self.date = date
+        self.refMin = refMin
+        self.refMax = refMax
+        self.reportId = reportId
+        self.syncState = "pending"
+    }
+    
+    // MARK: - Firestore Sync Support
+    #if canImport(FirebaseFirestore)
+    static func fromFirestore(_ data: [String: Any]) -> LabGraphDataModel? {
+        guard let id = data["id"] as? String,
+              let organ = data["organ"] as? String,
+              let parameter = data["parameter"] as? String,
+              let value = data["value"] as? Double,
+              let unit = data["unit"] as? String else {
+            return nil
+        }
+        
+        let date: Date
+        if let timestamp = data["date"] as? Timestamp {
+            date = timestamp.dateValue()
+        } else if let timeInterval = data["date"] as? TimeInterval {
+            date = Date(timeIntervalSince1970: timeInterval)
+        } else {
+            date = Date()
+        }
+              
+        return LabGraphDataModel(
+            id: id,
+            organ: organ,
+            parameter: parameter,
+            value: value,
+            unit: unit,
+            date: date,
+            reportId: data["reportId"] as? String
+        )
+    }
+    
+    func toFirestore() -> [String: Any] {
+        var dict: [String: Any] = [
+            "id": id,
+            "organ": organ,
+            "parameter": parameter,
+            "value": value,
+            "unit": unit,
+            "date": Timestamp(date: date)
+        ]
+        
+        if let reportId = reportId {
+            dict["reportId"] = reportId
+        }
+        
+        return dict
+    }
+    #endif
+}
+
+// MARK: - Helper Types
+
+public struct GraphPoint: Identifiable {
+    public let id: String
+    public let date: Date
+    public let value: Double
+    
+    public init(id: String = UUID().uuidString, date: Date, value: Double) {
+        self.id = id
+        self.date = date
+        self.value = value
+    }
+    
+    public init(from model: LabGraphDataModel) {
+        self.id = model.id
+        self.date = model.date
+        self.value = model.value
+    }
+}
+
+// MARK: - Parameter Trend Model (for Timeline)
+@Model
+public final class ParameterTrendModel {
+    @Attribute(.unique) public var id: String
+    public var organ: String // "Heart", "Kidney", "Lungs", etc.
+    public var parameter: String // "Heart Rate", "eGFR", "SpO2"
+    public var value: Double
+    public var unit: String
+    public var date: Date
+    public var trend: String // "improving", "stable", "declining"
+    public var comparisonValue: Double? // Previous value for comparison
+    
+    public init(id: String = UUID().uuidString,
          organ: String,
          parameter: String,
          value: Double,
@@ -155,18 +301,18 @@ final class OrganTrendModel {
 
 // MARK: - Timeline Entry Model
 @Model
-final class TimelineEntryModel {
-    @Attribute(.unique) var id: String
-    var date: Date
-    var type: String // "Report", "Lab", "Medication", "Appointment"
-    var title: String
-    var summary: String // Renamed from 'description' to avoid SwiftData conflict
-    var relatedReportId: String?
-    var iconName: String
-    var color: String // Hex color string
-    var syncState: String = "pending"
+public final class TimelineEntryModel {
+    @Attribute(.unique) public var id: String
+    public var date: Date
+    public var type: String // "Report", "Lab", "Medication", "Appointment"
+    public var title: String
+    public var summary: String // Renamed from 'description' to avoid SwiftData conflict
+    public var relatedReportId: String?
+    public var iconName: String
+    public var color: String // Hex color string
+    public var syncState: String = "pending"
     
-    init(id: String = UUID().uuidString,
+    public init(id: String = UUID().uuidString,
          date: Date = Date(),
          type: String,
          title: String,
@@ -189,13 +335,13 @@ final class TimelineEntryModel {
 // MARK: - Chat Message Model
 // MARK: - Chat Message Model
 @Model
-final class AIChatMessage {
-    @Attribute(.unique) var id: String
-    var text: String
-    var isUser: Bool
-    var timestamp: Date
+public final class AIChatMessage {
+    @Attribute(.unique) public var id: String
+    public var text: String
+    public var isUser: Bool
+    public var timestamp: Date
     
-    init(id: String = UUID().uuidString, text: String, isUser: Bool, timestamp: Date = Date()) {
+    public init(id: String = UUID().uuidString, text: String, isUser: Bool, timestamp: Date = Date()) {
         self.id = id
         self.text = text
         self.isUser = isUser
@@ -203,144 +349,15 @@ final class AIChatMessage {
     }
 }
 
-// MARK: - Sample Data Insertion
+
 extension ModelContext {
-    
-    /// Insert sample medical data for testing
-    func insertSampleData() {
-        // Sample Medical Report
-        let bloodTestReport = MedicalReportModel(
-            title: "Complete Blood Count",
-            reportType: "Blood Test",
-            organ: "Blood",
-            extractedText: "Hemoglobin: 14.2 g/dL\nWBC: 7.5 ×10³/µL\nPlatelets: 250 ×10³/µL",
-            aiInsights: "Your blood test results are within normal range. Hemoglobin levels are excellent."
-        )
-        insert(bloodTestReport)
-        
-        // Sample Lab Results
-        let hemoglobin = LabResultModel(
-            testName: "Hemoglobin",
-            parameter: "Hemoglobin",
-            value: 14.2,
-            unit: "g/dL",
-            normalRange: "12-16 g/dL",
-            status: "Normal",
-            category: "Blood"
-        )
-        insert(hemoglobin)
-        
-        let cholesterol = LabResultModel(
-            testName: "Total Cholesterol",
-            parameter: "Cholesterol",
-            value: 185,
-            unit: "mg/dL",
-            normalRange: "< 200 mg/dL",
-            status: "Normal",
-            category: "Lipid"
-        )
-        insert(cholesterol)
-        
-        let glucose = LabResultModel(
-            testName: "Fasting Glucose",
-            parameter: "Glucose",
-            value: 95,
-            unit: "mg/dL",
-            normalRange: "70-100 mg/dL",
-            status: "Normal",
-            category: "Glucose"
-        )
-        insert(glucose)
-        
-        // Link lab results to report
-        bloodTestReport.labResults = [hemoglobin, cholesterol, glucose]
-        
-        // Sample Medications
-        let aspirin = MedicationModel(
-            name: "Aspirin",
-            dosage: "75 mg",
-            frequency: "Once daily",
-            instructions: "Take with food in the morning",
-            prescribedBy: "Dr. Sarah Johnson",
-            sideEffects: "Nausea, stomach pain, heartburn",
-            alternatives: "Ibuprofen, Naproxen"
-        )
-        insert(aspirin)
-        
-        let metformin = MedicationModel(
-            name: "Metformin",
-            dosage: "500 mg",
-            frequency: "Twice daily",
-            instructions: "Take with meals",
-            prescribedBy: "Dr. Sarah Johnson",
-            sideEffects: "Nausea, vomiting, stomach upset",
-            alternatives: "Insulin, Sulfonylureas"
-        )
-        insert(metformin)
-        
-        // Sample Organ Trends
-        let heartTrend = OrganTrendModel(
-            organ: "Heart",
-            parameter: "Heart Rate",
-            value: 72,
-            unit: "bpm",
-            trend: "stable",
-            comparisonValue: 74
-        )
-        insert(heartTrend)
-        
-        let kidneyTrend = OrganTrendModel(
-            organ: "Kidney",
-            parameter: "eGFR",
-            value: 95,
-            unit: "mL/min",
-            trend: "stable",
-            comparisonValue: 93
-        )
-        insert(kidneyTrend)
-        
-        let lungsTrend = OrganTrendModel(
-            organ: "Lungs",
-            parameter: "SpO2",
-            value: 98,
-            unit: "%",
-            trend: "stable",
-            comparisonValue: 98
-        )
-        insert(lungsTrend)
-        
-        // Sample Timeline Entries
-        let reportEntry = TimelineEntryModel(
-            type: "Report",
-            title: "Blood Test Results",
-            summary: "Complete blood count with 3 lab results",
-            relatedReportId: bloodTestReport.id,
-            iconName: "drop.fill",
-            color: "#FF6B6B"
-        )
-        insert(reportEntry)
-        
-        let medicationEntry = TimelineEntryModel(
-            date: Date().addingTimeInterval(-86400), // Yesterday
-            type: "Medication",
-            title: "Started Aspirin",
-            summary: "75 mg once daily",
-            iconName: "pills.fill",
-            color: "#95E1D3"
-        )
-        insert(medicationEntry)
-        
-        // Save all changes
-        try? save()
-    }
-    
-    /// Clear all sample data
+    /// Clear all data
     func clearAllData() {
         // Delete all records
         try? delete(model: MedicalReportModel.self)
         try? delete(model: LabResultModel.self)
         try? delete(model: MedicationModel.self)
-        try? delete(model: OrganTrendModel.self)
+        try? delete(model: ParameterTrendModel.self)
         try? delete(model: TimelineEntryModel.self)
         
         try? save()
@@ -348,15 +365,15 @@ extension ModelContext {
 }
 // MARK: - Health Metric Model (Persisted)
 @Model
-final class HealthMetricModel {
-    @Attribute(.unique) var id: String
-    var date: Date
-    var type: String // "Heart Rate", "Steps", "Sleep", "Oxygen Saturation"
-    var value: Double
-    var unit: String
-    var source: String // "HealthKit", "Manual"
+public final class HealthMetricModel {
+    @Attribute(.unique) public var id: String
+    public var date: Date
+    public var type: String // "Heart Rate", "Steps", "Sleep", "Oxygen Saturation"
+    public var value: Double
+    public var unit: String
+    public var source: String // "HealthKit", "Manual"
     
-    init(id: String = UUID().uuidString,
+    public init(id: String = UUID().uuidString,
          date: Date,
          type: String,
          value: Double,
@@ -373,14 +390,14 @@ final class HealthMetricModel {
 
 // MARK: - Shared Enums
 
-enum TrendDirection: String, Codable {
+public enum TrendDirection: String, Codable {
     case improving = "improving"
     case stable = "stable"
     case declining = "declining"
     case unknown = "unknown"
 }
 
-enum EventSeverity: String, Codable {
+public enum EventSeverity: String, Codable {
     case critical = "critical"
     case high = "high"
     case medium = "medium"

@@ -1,7 +1,7 @@
 // DemoDataManager.swift
 import Foundation
-import SwiftUI
 import SwiftData
+import SwiftUI
 import Combine
 
 /// Manages demo data for testing and demonstrations
@@ -26,7 +26,13 @@ class DemoDataManager: ObservableObject {
         // Remove any existing demo data; do not generate new demo entries
         clearAllDemoData(context: context)
         
-        // Optionally, you could call generateDemo... methods here if you later want to enable demo data population.
+        // Demo data generation is disabled for production-ready state
+        // generateDemoReports(context: context)
+        // generateDemoMedications(context: context)
+        // generateDemoLabResults(context: context)
+        // generateDemoOrganTrends(context: context)
+        // generateDemoChatMessages(context: context)
+        // generateDemoTimelineEntries(context: context)
         
         // Save the cleared state
         try? context.save()
@@ -41,7 +47,7 @@ class DemoDataManager: ObservableObject {
         try? context.delete(model: MedicalReportModel.self)
         try? context.delete(model: MedicationModel.self)
         try? context.delete(model: LabResultModel.self)
-        try? context.delete(model: OrganTrendModel.self)
+        try? context.delete(model: ParameterTrendModel.self)
         try? context.delete(model: AIChatMessage.self)
         try? context.delete(model: TimelineEntryModel.self)
         try? context.delete(model: HealthMetricModel.self)
@@ -184,7 +190,7 @@ class DemoDataManager: ObservableObject {
         
         // Heart trends
         for i in 0..<20 {
-            let trend = OrganTrendModel(
+            let trend = ParameterTrendModel(
                 organ: "Heart",
                 parameter: "Heart Rate",
                 value: Double.random(in: 65...85),
@@ -198,7 +204,7 @@ class DemoDataManager: ObservableObject {
         
         // Kidney trends
         for i in 0..<15 {
-            let trend = OrganTrendModel(
+            let trend = ParameterTrendModel(
                 organ: "Kidney",
                 parameter: "eGFR",
                 value: Double.random(in: 85...105),
@@ -212,7 +218,7 @@ class DemoDataManager: ObservableObject {
         
         // Liver trends
         for i in 0..<15 {
-            let trend = OrganTrendModel(
+            let trend = ParameterTrendModel(
                 organ: "Liver",
                 parameter: "ALT",
                 value: Double.random(in: 20...40),
@@ -226,7 +232,7 @@ class DemoDataManager: ObservableObject {
         
         // Lungs trends
         for i in 0..<20 {
-            let trend = OrganTrendModel(
+            let trend = ParameterTrendModel(
                 organ: "Lungs",
                 parameter: "SpO2",
                 value: Double.random(in: 95...99),

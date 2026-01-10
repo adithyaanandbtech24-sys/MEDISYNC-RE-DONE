@@ -12,7 +12,7 @@ class HealthDataViewModel: ObservableObject {
     @Published var labResults: [LabResultModel] = []
     @Published var medications: [MedicationModel] = []
     @Published var timelineEntries: [TimelineEntryModel] = []
-    @Published var graphData: [GraphDataModel] = []
+    @Published var graphData: [LabGraphDataModel] = []
     
     // Real-time listeners
     private var reportListener: ListenerRegistration?
@@ -92,7 +92,7 @@ class HealthDataViewModel: ObservableObject {
             .addSnapshotListener { [weak self] snapshot, error in
                 guard let self = self, let documents = snapshot?.documents else { return }
                 Task { @MainActor in
-                    self.graphData = documents.compactMap { GraphDataModel.fromFirestore($0.data()) }
+                    self.graphData = documents.compactMap { LabGraphDataModel.fromFirestore($0.data()) }
                 }
             }
     }

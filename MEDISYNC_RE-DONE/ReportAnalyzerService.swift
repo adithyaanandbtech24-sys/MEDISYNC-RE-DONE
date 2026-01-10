@@ -1,8 +1,9 @@
 import Foundation
 import SwiftData
+import SwiftUI
 
-/// Offline report analyzer that generates intelligent summaries without external APIs
-class ReportAnalyzerService {
+/// Service for generating intelligent summaries and clinical analysis from lab results
+public class ReportAnalyzerService {
     
     // MARK: - Analysis Result
     struct AnalysisResult {
@@ -12,6 +13,7 @@ class ReportAnalyzerService {
         let parameterCount: Int
         let testDate: Date
         let labResults: [LabResultModel]
+        var trendInsights: [String] = [] // New: Trends compared to history
         
         struct Highlight {
             let parameter: String
@@ -22,55 +24,61 @@ class ReportAnalyzerService {
             let message: String
         }
         
-        /// Generate a natural language report summary
+        /// Generate a rich natural language report summary for the AI-lite experience
         func generateChatbotMessage() -> String {
-            var message = "📊 **Report Analysis Complete**\n\n"
+            var message = "📊 **Medical Insights Dashboard**\n\n"
             message += "**Report Type:** \(reportType)\n"
             message += "**Date:** \(testDate.formatted(date: .abbreviated, time: .omitted))\n"
-            message += "**Parameters Found:** \(parameterCount)\n\n"
+            message += "**Extracted Results:** \(parameterCount) tests analyzed\n\n"
+            
+            if !trendInsights.isEmpty {
+                message += "📈 **Trends & Progress:**\n"
+                for trend in trendInsights {
+                    message += "• \(trend)\n"
+                }
+                message += "\n"
+            }
             
             if !highlights.isEmpty {
-                message += "**Key Findings:**\n"
+                message += "🔍 **Key Clinical Findings:**\n"
                 
-                // Critical items first
+                // Categorize by severity
                 let critical = highlights.filter { $0.severity == .critical }
                 let abnormal = highlights.filter { $0.severity == .abnormal }
                 let borderline = highlights.filter { $0.severity == .borderline }
-                let normal = highlights.filter { $0.severity == .normal }
                 
                 if !critical.isEmpty {
-                    message += "\n🔴 **Critical:**\n"
+                    message += "\n🔴 **CRITICAL (Action Recommended):**\n"
                     for item in critical {
-                        message += "• \(item.parameter): \(String(format: "%.1f", item.value)) \(item.unit) - \(item.message)\n"
+                        message += "• **\(item.parameter)**: \(String(format: "%.1f", item.value))\(item.unit) (\(item.status))\n  _\(item.message)_\n"
                     }
                 }
                 
                 if !abnormal.isEmpty {
-                    message += "\n⚠️ **Abnormal:**\n"
+                    message += "\n⚠️ **ABNORMAL:**\n"
                     for item in abnormal {
-                        message += "• \(item.parameter): \(String(format: "%.1f", item.value)) \(item.unit) - \(item.message)\n"
+                        message += "• **\(item.parameter)**: \(String(format: "%.1f", item.value))\(item.unit) (\(item.status))\n  _\(item.message)_\n"
                     }
                 }
                 
                 if !borderline.isEmpty {
-                    message += "\n⚡ **Borderline:**\n"
+                    message += "\n⚡ **BORDERLINE:**\n"
                     for item in borderline {
-                        message += "• \(item.parameter): \(String(format: "%.1f", item.value)) \(item.unit) - \(item.message)\n"
+                        message += "• \(item.parameter): \(String(format: "%.1f", item.value))\(item.unit) - \(item.message)\n"
                     }
                 }
                 
-                if !normal.isEmpty && critical.isEmpty && abnormal.isEmpty {
-                    message += "\n✅ **Normal Parameters:**\n"
-                    for item in normal.prefix(5) {
-                        message += "• \(item.parameter): \(String(format: "%.1f", item.value)) \(item.unit)\n"
-                    }
-                    if normal.count > 5 {
-                        message += "• ... and \(normal.count - 5) more normal results\n"
-                    }
+                let normalCount = parameterCount - (critical.count + abnormal.count + borderline.count)
+                if normalCount > 0 {
+                    message += "\n✅ **\(normalCount) Parameters are within normal ranges.**\n"
                 }
+            } else if parameterCount > 0 {
+                message += "✅ **Excellent News:** All extracted results are within the normal reference ranges for your profile.\n"
             } else {
-                message += "✅ All parameters appear to be within normal ranges.\n"
+                message += "⚠️ **No quantifiable data found.** The scanner didn't pick up specific lab values from this document format.\n"
             }
+            
+            message += "\n--- \n*Disclaimer: This is an automated offline analysis. Always consult your healthcare provider for medical decisions.*"
             
             return message
         }
@@ -78,16 +86,20 @@ class ReportAnalyzerService {
     
     private let standardProvider: MedicalStandardProvider
     
-    init(userProfile: MedicalStandardProvider.UserProfile) {
+    init(userProfile: UserProfileModel) {
         self.standardProvider = MedicalStandardProvider(userProfile: userProfile)
     }
     
     // MARK: - Analysis Methods
     
-    /// Analyze a medical report from OCR text
-    func analyzeReport(ocrText: String, testDate: Date = Date()) -> AnalysisResult {
-        // Step 1: Parse lab results
-        let labResults = MedicalDataParser.parseLabResults(from: ocrText)
+    /// Analyze a medical report from OCR text with optional historical context
+    func analyzeReport(ocrText: String, testDate: Date = Date(), history: [LabResultModel] = []) -> AnalysisResult {
+        // Step 1: Parse lab results using the upgraded parser
+        var labResults = MedicalDataParser.parseLabResults(from: ocrText)
+        
+        // Step 1.5: Universal Fallback Extraction (Catch-all for unknown parameters)
+        let universalResults = MedicalDataParser.parseUniversalLabResults(from: ocrText, existingResults: labResults)
+        labResults.append(contentsOf: universalResults)
         
         // Step 2: Detect report type
         let reportType = MedicalDataParser.detectReportType(from: ocrText)
@@ -99,7 +111,6 @@ class ReportAnalyzerService {
             if let standard = standardProvider.getStandard(for: result.testName) {
                 let assessment = standard.assess(value: result.value)
                 
-                // Generate intelligent message
                 let message = generateMessage(
                     parameter: result.testName,
                     value: result.value,
@@ -117,21 +128,27 @@ class ReportAnalyzerService {
                     message: message
                 )
                 
-                // Only highlight non-normal values
                 if assessment.severity != .normal {
                     highlights.append(highlight)
                 }
             }
         }
         
-        // Step 4: Generate summary
+        // Step 4: Compare with history (Trends)
+        let trendInsights = compareWithHistory(currentResults: labResults, history: history)
+        
+        // Step 5: Perform Correlative Analysis (New)
+        let clinicalInsights = performCorrelativeAnalysis(results: labResults)
+        
+        // Step 6: Generate quick summary
         let summary = generateSummary(
             reportType: reportType,
             labResults: labResults,
-            highlights: highlights
+            highlights: highlights,
+            trends: trendInsights
         )
         
-        return AnalysisResult(
+        var result = AnalysisResult(
             reportType: reportType,
             summary: summary,
             highlights: highlights,
@@ -139,34 +156,66 @@ class ReportAnalyzerService {
             testDate: testDate,
             labResults: labResults
         )
+        result.trendInsights = trendInsights + clinicalInsights
+        
+        return result
     }
     
-    /// Compare with previous results
-    func compareWithHistory(
-        current: AnalysisResult,
-        previousResults: [GraphDataModel]
-    ) -> [String] {
-        var comparisons: [String] = []
+    /// Detect patterns involving multiple markers
+    private func performCorrelativeAnalysis(results: [LabResultModel]) -> [String] {
+        var insights: [String] = []
+        let patterns = standardProvider.clinicalPatterns
         
-        for labResult in current.labResults {
-            // Find previous values for this parameter
-            let historical = previousResults.filter { point in
-                point.parameter.lowercased() == labResult.testName.lowercased()
-            }.sorted { $0.date < $1.date }
+        for pattern in patterns {
+            // Check if all markers for this pattern were found and are abnormal
+            var markersFoundAndAbnormal = 0
             
-            if let lastValue = historical.last {
-                let change = labResult.value - lastValue.value
-                let percentChange = (change / lastValue.value) * 100
+            for markerName in pattern.markers {
+                let match = results.first { $0.testName.lowercased().contains(markerName.lowercased()) }
+                if let m = match {
+                    // Check if it's outside normal range
+                    if m.status.lowercased() != "normal" {
+                        markersFoundAndAbnormal += 1
+                    }
+                }
+            }
+            
+            // If all required markers for a pattern are abnormal, trigger the insight
+            if markersFoundAndAbnormal == pattern.markers.count && markersFoundAndAbnormal > 0 {
+                let emoji = pattern.alertLevel == .critical ? "🚨" : "🔍"
+                insights.append("\(emoji) **\(pattern.name) Detected**: \(pattern.condition)")
+            }
+        }
+        
+        return insights
+    }
+    
+    /// Compare current results with historical data directly
+    private func compareWithHistory(currentResults: [LabResultModel], history: [LabResultModel]) -> [String] {
+        var insights: [String] = []
+        
+        for current in currentResults {
+            // Find the most recent previous result for this parameter
+            let previous = history
+                .filter { $0.testName.lowercased() == current.testName.lowercased() && $0.testDate < current.testDate }
+                .sorted(by: { $0.testDate > $1.testDate })
+                .first
+            
+            if let last = previous {
+                let change = current.value - last.value
+                let percentChange = (change / last.value) * 100
                 
-                if abs(percentChange) > 10 { // Significant change
+                if abs(percentChange) >= 5 { // Report changes of 5% or more
                     let direction = change > 0 ? "increased" : "decreased"
-                    let comparison = "\(labResult.testName) has \(direction) by \(String(format: "%.1f", abs(percentChange)))% since \(lastValue.date.formatted(date: .abbreviated, time: .omitted))"
-                    comparisons.append(comparison)
+                    let statusEmoji = (change > 0 && current.status == "High") || (change < 0 && current.status == "Low") ? "⚠️" : "📉"
+                    
+                    let insight = "\(statusEmoji) Your **\(current.testName)** has \(direction) by \(String(format: "%.1f", abs(percentChange)))% since your last test."
+                    insights.append(insight)
                 }
             }
         }
         
-        return comparisons
+        return insights
     }
     
     // MARK: - Helper Methods
@@ -182,17 +231,13 @@ class ReportAnalyzerService {
         
         switch status {
         case "Critically Low":
-            return "This is significantly below the normal range (\(normalRange)). Please consult your doctor immediately."
+            return "Extreme low detected. Range: \(normalRange). Consult emergency care if symptomatic."
         case "Critically High":
-            return "This is significantly above the normal range (\(normalRange)). Please consult your doctor immediately."
+            return "Extreme high detected. Range: \(normalRange). Consult emergency care if symptomatic."
         case "Low":
-            return "Below normal range (\(normalRange)). Monitor and discuss with your doctor."
+            return "Below normal range (\(normalRange))."
         case "High":
-            return "Above normal range (\(normalRange)). Monitor and discuss with your doctor."
-        case "Slightly Below Normal":
-            return "Just below the normal range (\(normalRange)). Keep an eye on it."
-        case "Slightly Above Normal":
-            return "Just above the normal range (\(normalRange)). Keep an eye on it."
+            return "Above normal range (\(normalRange))."
         default:
             return "Within normal range (\(normalRange))."
         }
@@ -201,27 +246,16 @@ class ReportAnalyzerService {
     private func generateSummary(
         reportType: String,
         labResults: [LabResultModel],
-        highlights: [AnalysisResult.Highlight]
+        highlights: [AnalysisResult.Highlight],
+        trends: [String]
     ) -> String {
-        var summary = "This \(reportType) contains \(labResults.count) test parameter(s). "
-        
-        let criticalCount = highlights.filter { $0.severity == .critical }.count
-        let abnormalCount = highlights.filter { $0.severity == .abnormal }.count
-        let borderlineCount = highlights.filter { $0.severity == .borderline }.count
-        
-        if criticalCount > 0 {
-            summary += "\(criticalCount) critical finding(s) require immediate attention. "
+        var summary = "Scan found \(labResults.count) parameters in this \(reportType). "
+        if !highlights.isEmpty {
+            summary += "\(highlights.filter({$0.severity != .normal}).count) results outside normal range. "
         }
-        if abnormalCount > 0 {
-            summary += "\(abnormalCount) abnormal result(s) detected. "
+        if !trends.isEmpty {
+            summary += "Significant changes detected since last report."
         }
-        if borderlineCount > 0 {
-            summary += "\(borderlineCount) borderline result(s) to monitor. "
-        }
-        if criticalCount == 0 && abnormalCount == 0 {
-            summary += "All major parameters are within acceptable ranges. "
-        }
-        
         return summary
     }
 }

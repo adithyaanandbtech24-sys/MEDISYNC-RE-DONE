@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import Combine
 
 /// A "Lite" Graph RAG engine that treats SwiftData models as nodes and their relationships as edges.
 /// It performs keyword-based retrieval and traverses relationships to build a rich context for the AI.
@@ -18,63 +19,75 @@ final class GraphRAGEngine {
     /// - Returns: A formatted string containing relevant medical facts.
     func retrieveContext(for query: String, context: ModelContext) -> String {
         let keywords = extractKeywords(from: query)
-        guard !keywords.isEmpty else { return "" }
         
         var contextParts: [String] = []
         
-        // 1. Search Nodes (Keyword Match)
-        let relevantLabs = findRelevantLabs(keywords: keywords, context: context)
-        let relevantMeds = findRelevantMeds(keywords: keywords, context: context)
-        let relevantReports = findRelevantReports(keywords: keywords, context: context)
+        // ALWAYS include user profile first
+        if let profile = try? context.fetch(FetchDescriptor<UserProfileModel>()).first {
+            contextParts.append("--- USER PROFILE ---")
+            contextParts.append("Name: \(profile.name), Age: \(profile.age), Gender: \(profile.gender)")
+            if let height = profile.height { contextParts.append("Height: \(height) cm") }
+            if let weight = profile.weight { contextParts.append("Weight: \(weight) kg") }
+        }
         
-        // 2. Traverse & Format (Graph Traversal)
-        
-        // Labs -> Report Context
-        if !relevantLabs.isEmpty {
-            contextParts.append("--- RELEVANT LAB RESULTS ---")
-            for lab in relevantLabs {
-                var entry = "- \(lab.testName): \(lab.value) \(lab.unit) (\(lab.status)) on \(formatDate(lab.testDate))"
-                // Edge Traversal: Lab -> Report
-                // Note: We don't have a direct back-link in the model definition shown previously unless we query it,
-                // but usually relationships are bidirectional if defined.
-                // Assuming we can't easily get the parent report without a query or if it's not set, we skip.
-                // However, let's check if we can add more context from the lab itself.
-                entry += ". Normal Range: \(lab.normalRange)."
-                contextParts.append(entry)
+        // ALWAYS include all report summaries with dates
+        if let allReports = try? context.fetch(FetchDescriptor<MedicalReportModel>(sortBy: [SortDescriptor(\.uploadDate, order: .reverse)])) {
+            if !allReports.isEmpty {
+                contextParts.append("\n--- ALL UPLOAD HISTORY (\(allReports.count) reports) ---")
+                for report in allReports {
+                    contextParts.append("• \(formatDate(report.uploadDate)): \(report.title) (\(report.reportType))")
+                }
             }
         }
         
-        // Medications
-        if !relevantMeds.isEmpty {
-            contextParts.append("\n--- RELEVANT MEDICATIONS ---")
-            for med in relevantMeds {
-                var entry = "- \(med.name): \(med.dosage), \(med.frequency)."
-                if let instructions = med.instructions {
-                    entry += " Instructions: \(instructions)."
+        // Keyword-based search for relevant data
+        if !keywords.isEmpty {
+            // 1. Search Nodes (Keyword Match)
+            let relevantLabs = findRelevantLabs(keywords: keywords, context: context)
+            let relevantMeds = findRelevantMeds(keywords: keywords, context: context)
+            let relevantReports = findRelevantReports(keywords: keywords, context: context)
+            
+            // 2. Labs Context
+            if !relevantLabs.isEmpty {
+                contextParts.append("\n--- RELEVANT LAB RESULTS ---")
+                for lab in relevantLabs {
+                    var entry = "- \(lab.testName): \(lab.value) \(lab.unit) (\(lab.status)) on \(formatDate(lab.testDate))"
+                    entry += ". Normal Range: \(lab.normalRange)."
+                    contextParts.append(entry)
                 }
-                if med.isActive {
-                    entry += " (Active)"
-                } else {
-                    entry += " (Inactive, ended \(formatDate(med.endDate ?? Date())))"
-                }
-                contextParts.append(entry)
             }
-        }
-        
-        // Reports -> Insights
-        if !relevantReports.isEmpty {
-            contextParts.append("\n--- RELEVANT REPORTS ---")
-            for report in relevantReports {
-                var entry = "- Report: \(report.title) (\(formatDate(report.uploadDate)))"
-                if let insights = report.aiInsights {
-                    entry += "\n  Summary: \(insights)"
+            
+            // 3. Medications Context
+            if !relevantMeds.isEmpty {
+                contextParts.append("\n--- RELEVANT MEDICATIONS ---")
+                for med in relevantMeds {
+                    var entry = "- \(med.name): \(med.dosage), \(med.frequency)."
+                    if let instructions = med.instructions {
+                        entry += " Instructions: \(instructions)."
+                    }
+                    if med.isActive {
+                        entry += " (Active)"
+                    } else {
+                        entry += " (Past medication, ended \(formatDate(med.endDate ?? Date())))"
+                    }
+                    contextParts.append(entry)
                 }
-                // Edge Traversal: Report -> Labs
-                if let labs = report.labResults, !labs.isEmpty {
-                    let labNames = labs.map { $0.testName }.joined(separator: ", ")
-                    entry += "\n  Contains labs: \(labNames)"
+            }
+            
+            // 4. Reports Context with detailed insights
+            if !relevantReports.isEmpty {
+                contextParts.append("\n--- RELEVANT REPORTS ---")
+                for report in relevantReports {
+                    var entry = "- Report: \(report.title) (uploaded \(formatDate(report.uploadDate)))"
+                    if !report.aiInsights.isEmpty {
+                        entry += "\n  Summary: \(report.aiInsights)"
+                    }
+                    if let labs = report.labResults, !labs.isEmpty {
+                        let labNames = labs.map { $0.testName }.joined(separator: ", ")
+                        entry += "\n  Contains labs: \(labNames)"
+                    }
+                    contextParts.append(entry)
                 }
-                contextParts.append(entry)
             }
         }
         
@@ -86,7 +99,7 @@ final class GraphRAGEngine {
         CONTEXT FROM MEDICAL RECORDS:
         \(contextParts.joined(separator: "\n"))
         
-        INSTRUCTIONS: Use the above context to answer the user's question accurately. Cite specific dates and values where possible.
+        INSTRUCTIONS: Use the above context to answer the user's question accurately. Cite specific dates and values where possible. You have access to ALL their upload history.
         """
     }
     
@@ -133,7 +146,7 @@ final class GraphRAGEngine {
         guard let allReports = try? context.fetch(FetchDescriptor<MedicalReportModel>()) else { return [] }
         
         return allReports.filter { report in
-            let content = "\(report.title) \(report.organ) \(report.reportType) \(report.aiInsights ?? "")".lowercased()
+            let content = "\(report.title) \(report.organ) \(report.reportType) \(report.aiInsights)".lowercased()
             return keywords.contains { content.contains($0) }
         }
     }

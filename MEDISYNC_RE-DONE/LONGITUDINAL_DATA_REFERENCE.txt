@@ -1,0 +1,271 @@
+## ================================
+
+## PATIENT MASTER RECORD
+
+## ================================
+
+Patient_Name: Ali Rahman
+Patient_ID: MS-IND-240981
+Gender: Male
+Date_of_Birth: 1979-03-14
+Age_at_First_Visit: 46
+Blood_Group: O+
+Marital_Status: Married
+Occupation: Software Project Manager
+Location: Bengaluru, Karnataka, India
+
+Known_Conditions:
+
+* Hypertension
+* Dyslipidemia
+* Non-Alcoholic Fatty Liver Disease (NAFLD)
+* Stable Coronary Artery Disease
+
+Allergies: None known
+
+Chronic_Medications:
+
+* Amlodipine 5 mg OD
+* Atorvastatin (dose adjusted over time)
+* Aspirin 75 mg OD
+* Metoprolol 25 mg BD (from Nov 2025)
+
+---
+
+## ================================
+
+## RECORD 1 — INITIAL VISIT
+
+## ================================
+
+Visit_Date: 2025-11-18
+Visit_Type: New Consultation
+Departments: Internal Medicine, Cardiology, Hepatology
+
+Chief_Complaints:
+
+* Chest discomfort on exertion
+* Fatigue
+* Right upper abdominal discomfort
+
+Vitals:
+BP: 142/88 mmHg
+Pulse: 78 bpm
+BMI: 29.4 kg/m²
+
+Key_Findings:
+
+* Mild hepatomegaly
+* Reduced exercise tolerance
+
+Investigations:
+
+LFT:
+AST: 78 U/L
+ALT: 96 U/L
+ALP: 142 U/L
+Total_Bilirubin: 1.4 mg/dL
+Direct_Bilirubin: 0.4 mg/dL
+Albumin: 3.6 g/dL
+
+Lipid_Profile:
+Total_Cholesterol: 236 mg/dL
+LDL: 154 mg/dL
+HDL: 38 mg/dL
+Triglycerides: 212 mg/dL
+
+Cardiac:
+ECG: Mild ST depression (lateral leads)
+ECHO_EF: 55%
+TMT: Positive for inducible ischemia
+
+Ultrasound_Abdomen:
+
+* Grade II fatty liver
+
+Diagnosis:
+
+* Stable Angina
+* NAFLD
+* Hypertension
+* Dyslipidemia
+
+Treatment_Started:
+
+* Aspirin 75 mg OD
+* Metoprolol 25 mg BD
+* Atorvastatin increased to 40 mg OD
+* Ursodeoxycholic Acid 300 mg BD
+* Continue Amlodipine
+
+---
+
+## ================================
+
+## RECORD 2 — FOLLOW-UP (1 WEEK)
+
+## ================================
+
+Visit_Date: 2025-11-25
+Visit_Type: Follow-up OPD
+
+Subjective_Improvement:
+
+* Chest pain reduced
+* No new symptoms
+
+Vitals:
+BP: 134/84 mmHg
+Pulse: 72 bpm
+Weight: 87 kg
+
+Repeat_LFT:
+AST: 72 U/L
+ALT: 90 U/L
+ALP: 138 U/L
+Total_Bilirubin: 1.3 mg/dL
+
+ECG:
+
+* Normal sinus rhythm
+
+Assessment:
+
+* Stable angina improving
+* Early biochemical improvement in liver enzymes
+
+Plan:
+
+* Continue same medications
+* Lifestyle reinforcement
+
+---
+
+## ================================
+
+## RECORD 3 — FOLLOW-UP (1 MONTH)
+
+## ================================
+
+Visit_Date: 2025-12-18
+Visit_Type: Monthly Review
+
+Vitals:
+BP: 128/80 mmHg
+Pulse: 70 bpm
+BMI: 28.7 kg/m²
+
+LFT:
+AST: 58 U/L
+ALT: 62 U/L
+ALP: 130 U/L
+Total_Bilirubin: 1.1 mg/dL
+Albumin: 3.9 g/dL
+
+Lipid_Profile:
+Total_Cholesterol: 198 mg/dL
+LDL: 118 mg/dL
+HDL: 42 mg/dL
+Triglycerides: 168 mg/dL
+
+HbA1c: 5.7%
+
+Assessment:
+
+* Good statin response
+* Improving NAFLD
+* BP controlled
+
+Plan:
+
+* Continue therapy
+* Add dietary fiber
+* Next review in 3 months
+
+---
+
+## ================================
+
+## RECORD 4 — FOLLOW-UP (3 MONTHS)
+
+## ================================
+
+Visit_Date: 2026-02-18
+Visit_Type: Preventive / Risk Reassessment
+
+Additional_Investigations:
+
+CT_Coronary_Angiography:
+
+* Mild non-obstructive plaque in LAD
+* No significant stenosis
+
+FibroScan:
+Liver_Stiffness: 6.4 kPa
+CAP_Score: 290 dB/m
+Interpretation: Mild fibrosis (F1), moderate steatosis
+
+LFT:
+AST: 46 U/L
+ALT: 48 U/L
+
+Assessment:
+
+* Low-risk CAD
+* NAFLD with early fibrosis
+
+Plan:
+
+* Continue statin and beta-blocker
+* Annual liver monitoring
+
+---
+
+## ================================
+
+## RECORD 5 — FOLLOW-UP (1 YEAR)
+
+## ================================
+
+Visit_Date: 2026-11-18
+Visit_Type: Annual Health Check
+
+Subjective_Status:
+
+* Asymptomatic
+* Regular exercise
+* Dietary compliance maintained
+
+Vitals:
+BP: 122/76 mmHg
+Pulse: 68 bpm
+Weight: 79 kg
+
+LFT:
+AST: 34 U/L
+ALT: 36 U/L
+ALP: 118 U/L
+Total_Bilirubin: 0.9 mg/dL
+Albumin: 4.2 g/dL
+
+Lipid_Profile:
+Total_Cholesterol: 168 mg/dL
+LDL: 92 mg/dL
+HDL: 48 mg/dL
+Triglycerides: 136 mg/dL
+
+Ultrasound_Abdomen:
+
+* Grade I fatty liver
+* No hepatomegaly
+
+Final_Assessment:
+
+* Stable coronary artery disease
+* NAFLD regressed
+* Hypertension well controlled
+
+Long_Term_Plan:
+
+* Maintenance therapy
+* Annual follow-up

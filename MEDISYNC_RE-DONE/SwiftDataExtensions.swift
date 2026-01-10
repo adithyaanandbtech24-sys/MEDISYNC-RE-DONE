@@ -23,8 +23,8 @@ extension ModelContext {
             organ: organ,
             imageURL: imageURL,
             pdfURL: pdfURL,
-            extractedText: extractedText,
-            aiInsights: aiInsights
+            extractedText: extractedText ?? "",
+            aiInsights: aiInsights ?? ""
         )
         insert(report)
         try? save()
@@ -165,18 +165,18 @@ extension ModelContext {
         try? save()
     }
     
-    // MARK: - Organ Trends CRUD
+    // MARK: - Parameter Trends CRUD
     
-    /// Create a new organ trend entry
-    func createOrganTrend(
+    /// Create a new parameter trend entry
+    func createParameterTrend(
         organ: String,
         parameter: String,
         value: Double,
         unit: String,
         trend: String = "stable",
         comparisonValue: Double? = nil
-    ) -> OrganTrendModel {
-        let organTrend = OrganTrendModel(
+    ) -> ParameterTrendModel {
+        let parameterTrend = ParameterTrendModel(
             organ: organ,
             parameter: parameter,
             value: value,
@@ -184,39 +184,39 @@ extension ModelContext {
             trend: trend,
             comparisonValue: comparisonValue
         )
-        insert(organTrend)
+        insert(parameterTrend)
         try? save()
-        return organTrend
+        return parameterTrend
     }
     
-    /// Read all organ trends
-    func fetchAllOrganTrends() -> [OrganTrendModel] {
-        let descriptor = FetchDescriptor<OrganTrendModel>(
+    /// Read all parameter trends
+    func fetchAllParameterTrends() -> [ParameterTrendModel] {
+        let descriptor = FetchDescriptor<ParameterTrendModel>(
             sortBy: [SortDescriptor(\.date, order: .reverse)]
         )
         return (try? fetch(descriptor)) ?? []
     }
     
-    /// Read trends for specific organ
-    func fetchOrganTrends(for organ: String) -> [OrganTrendModel] {
-        let descriptor = FetchDescriptor<OrganTrendModel>(
-            predicate: #Predicate { $0.organ == organ },
+    /// Read trends for specific parameter
+    func fetchParameterTrends(for parameter: String) -> [ParameterTrendModel] {
+        let descriptor = FetchDescriptor<ParameterTrendModel>(
+            predicate: #Predicate { $0.parameter == parameter },
             sortBy: [SortDescriptor(\.date, order: .reverse)]
         )
         return (try? fetch(descriptor)) ?? []
     }
     
     /// Read trend by ID
-    func fetchOrganTrend(id: String) -> OrganTrendModel? {
-        let descriptor = FetchDescriptor<OrganTrendModel>(
+    func fetchParameterTrend(id: String) -> ParameterTrendModel? {
+        let descriptor = FetchDescriptor<ParameterTrendModel>(
             predicate: #Predicate { $0.id == id }
         )
         return try? fetch(descriptor).first
     }
     
-    /// Update organ trend
-    func updateOrganTrend(
-        _ trend: OrganTrendModel,
+    /// Update parameter trend
+    func updateParameterTrend(
+        _ trend: ParameterTrendModel,
         value: Double? = nil,
         trendStatus: String? = nil
     ) {
@@ -229,8 +229,8 @@ extension ModelContext {
         try? save()
     }
     
-    /// Delete organ trend
-    func deleteOrganTrend(_ trend: OrganTrendModel) {
+    /// Delete parameter trend
+    func deleteParameterTrend(_ trend: ParameterTrendModel) {
         delete(trend)
         try? save()
     }
@@ -375,32 +375,32 @@ extension ModelContext {
     }
 }
 
-// MARK: - Organ Trends Extensions
+// MARK: - Parameter Trends Extensions
 
 extension ModelContext {
     
     /// Fetch recent trends (last 30 days)
-    func fetchRecentOrganTrends(days: Int = 30) -> [OrganTrendModel] {
+    func fetchRecentParameterTrends(days: Int = 30) -> [ParameterTrendModel] {
         let cutoffDate = Calendar.current.date(byAdding: .day, value: -days, to: Date()) ?? Date()
-        let descriptor = FetchDescriptor<OrganTrendModel>(
+        let descriptor = FetchDescriptor<ParameterTrendModel>(
             predicate: #Predicate { $0.date >= cutoffDate },
             sortBy: [SortDescriptor(\.date, order: .reverse)]
         )
         return (try? fetch(descriptor)) ?? []
     }
     
-    /// Fetch trends by organ and parameter
-    func fetchOrganTrends(organ: String, parameter: String) -> [OrganTrendModel] {
-        let descriptor = FetchDescriptor<OrganTrendModel>(
-            predicate: #Predicate { $0.organ == organ && $0.parameter == parameter },
+    /// Fetch trends by parameter
+    func fetchParameterTrends(parameter: String) -> [ParameterTrendModel] {
+        let descriptor = FetchDescriptor<ParameterTrendModel>(
+            predicate: #Predicate { $0.parameter == parameter },
             sortBy: [SortDescriptor(\.date, order: .reverse)]
         )
         return (try? fetch(descriptor)) ?? []
     }
     
     /// Fetch improving trends
-    func fetchImprovingTrends() -> [OrganTrendModel] {
-        let descriptor = FetchDescriptor<OrganTrendModel>(
+    func fetchImprovingTrends() -> [ParameterTrendModel] {
+        let descriptor = FetchDescriptor<ParameterTrendModel>(
             predicate: #Predicate { $0.trend == "improving" },
             sortBy: [SortDescriptor(\.date, order: .reverse)]
         )
@@ -408,27 +408,27 @@ extension ModelContext {
     }
     
     /// Fetch declining trends
-    func fetchDecliningTrends() -> [OrganTrendModel] {
-        let descriptor = FetchDescriptor<OrganTrendModel>(
+    func fetchDecliningTrends() -> [ParameterTrendModel] {
+        let descriptor = FetchDescriptor<ParameterTrendModel>(
             predicate: #Predicate { $0.trend == "declining" },
             sortBy: [SortDescriptor(\.date, order: .reverse)]
         )
         return (try? fetch(descriptor)) ?? []
     }
     
-    /// Get latest trend for specific organ
-    func fetchLatestTrend(for organ: String) -> OrganTrendModel? {
-        let descriptor = FetchDescriptor<OrganTrendModel>(
-            predicate: #Predicate { $0.organ == organ },
+    /// Get latest trend for specific parameter
+    func fetchLatestTrend(for parameter: String) -> ParameterTrendModel? {
+        let descriptor = FetchDescriptor<ParameterTrendModel>(
+            predicate: #Predicate { $0.parameter == parameter },
             sortBy: [SortDescriptor(\.date, order: .reverse)]
         )
         return try? fetch(descriptor).first
     }
     
-    /// Get unique organs from trends
-    func fetchUniqueOrgansFromTrends() -> [String] {
-        let trends = fetchAllOrganTrends()
-        return Array(Set(trends.map { $0.organ })).sorted()
+    /// Get unique parameters from trends
+    func fetchUniqueParametersFromTrends() -> [String] {
+        let trends = fetchAllParameterTrends()
+        return Array(Set(trends.map { $0.parameter })).sorted()
     }
 }
 

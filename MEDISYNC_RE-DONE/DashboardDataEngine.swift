@@ -320,7 +320,7 @@ final class DashboardDataEngine {
         var hasHigh = false
         
         for report in reports {
-            let content = (report.title + " " + (report.aiInsights ?? "")).lowercased()
+            let content = (report.title + " " + report.aiInsights).lowercased()
             if criticalKeywords.contains(where: { content.contains($0) }) {
                 hasCritical = true
             }
